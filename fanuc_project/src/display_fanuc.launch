@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Publica la descripción del robot FANUC -->
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find fanuc_lrmate200id_support)/urdf/lrmate200id.xacro" />
+
+  <!-- Publica los frames TF desde los joint_states -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+
+  <!-- Carga RViz con una configuración específica -->
+  <arg name="config_file" default="$(find fanuc_lrmate200id_support)/rviz/fanuc_lrmate200id.rviz"/>
+  <node name="rviz" pkg="rviz" type="rviz" respawn="false" output="screen" args="-d $(arg config_file)"/>
+</launch>
+
