@@ -1,16 +1,21 @@
 <?xml version="1.0"?>
 <launch>
-  <!-- Cargar el modelo estándar del FANUC LR Mate 200iD -->
-  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find fanuc_lrmate200id_support)/urdf/lrmate200id.xacro"/>
+  <!-- Activa el GUI de sliders -->
+  <param name="use_gui" value="true"/>
 
-  <!-- Nodo para mover articulaciones manualmente -->
+  <!-- Cargar URDF desde Xacro -->
+  <param name="robot_description" command="$(find xacro)/xacro $(find fanuc_lrmate200id_support)/urdf/lrmate200id.xacro"/>
+
+
+  <!-- GUI de articulaciones -->
   <node name="joint_state_publisher_gui" pkg="joint_state_publisher_gui" type="joint_state_publisher_gui"/>
 
-  <!-- Nodo que publica los transforms del robot -->
+  <!-- TF del robot -->
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
 
-  <!-- Visualización en RViz -->
+  <!-- Lanzar RViz -->
   <arg name="config_file" default="$(find fanuc_lrmate200id_support)/rviz/fanuc_lrmate200id.rviz"/>
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg config_file)" output="screen"/>
 </launch>
+
 

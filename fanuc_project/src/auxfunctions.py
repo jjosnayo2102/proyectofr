@@ -25,61 +25,46 @@ class Robot(object):
     def read_joint_velocities(self):
         return self.dq
 
-
-
 def dh(d, theta, a, alpha):
     """
-    Calcular la matriz de transformacion homogenea asociada con los parametros
-    de Denavit-Hartenberg.
-    Los valores d, theta, a, alpha son escalares.
-
+    Calcula la matriz de transformación homogénea según la convención DH estándar.
     """
     sth = np.sin(theta)
     cth = np.cos(theta)
     sa  = np.sin(alpha)
     ca  = np.cos(alpha)
-    T = np.array([[cth, -ca*sth,  sa*sth, a*cth],
-                  [sth,  ca*cth, -sa*cth, a*sth],
-                  [0.0,      sa,      ca,     d],
-                  [0.0,     0.0,     0.0,   1.0]])
+
+    T = np.array([[cth, -sth*ca,  sth*sa, a*cth],
+                  [sth,  cth*ca, -cth*sa, a*sth],
+                  [0.0,     sa,     ca,     d],
+                  [0.0,    0.0,    0.0,   1.0]])
     return T
 
 
+# cinematica directa del fanuc200id
 def fkine_fanuc(q):
+    T01 = dh(0.330,     q[0],  0.050,  -pi/2)
+    T12 = dh(0.0,       q[1],  0.000,   pi/2)
+    T23 = dh(0.035,     q[2],  0.000,  -pi/2) 
+    T34 = dh(0.0,       q[3],  0.335,   pi/2) 
+    T45 = dh(0.0,       q[4],  0.080,  -pi/2)
+    T56 = dh(0.0,       q[5],  0.000,   0.0)
 
-    if q[0]<0:
-      q[0] = 0
-    if q[3]>=0.8:
-      q[3]=0.8
-    if q[4]>=0.5:
-      q[4] = 0.5
-    if q[4]<=-0.5:
-      q[4] = -0.5
-    if q[5]>=0.5:
-      q[5] = 0.5
-    if q[5]<=-0.5:
-      q[5] = -0.5
-    # Matrices DH
-    T01 = dh(    0,    pi+q[0], -0.320, pi/2)
-    T12 = dh(    0,  q[1]+pi/2,  1.075,    0)
-    T23 = dh(    0,      -q[2],  0.215,    0)
-    T34 = dh( q[3],       pi/2,  1.730,    0)
-    T45 = dh(    0,      -q[4],  0.225,    0)
-    T56 = dh(    0,       q[5],      0,    0)
-
-    # Efector final con respecto a la base
-    T = T01 @ T12 @ T23 @ T34 @ T45 @ T56  
+    T = T01 @ T12 @ T23 @ T34 @ T45 @ T56
     return T
+
+
+
 
 
 def jacobian_position(q, delta=0.0001):
     # Alocacion de memoria
-    J = np.zeros((3,8))
+    J = np.zeros((3,6))
     # Transformacion homogenea inicial (usando q)
     x = fkine_fanuc(q)[0:3,3] 
     # Iteracion para la derivada de cada columna
 
-    for i in range(8):
+    for i in range(6):
         # Copiar la configuracion articular inicial (usar este dq para cada
         # incremento en una articulacion)
         
