@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- Parámetros del modelo -->
+  <arg name="paused" default="false"/>
+  <arg name="gui" default="true"/>
+  <arg name="robot_namespace" default=""/>
+  <arg name="tf_prefix" default=""/>
+  <arg name="x" default="0"/>
+  <arg name="y" default="0"/>
+  <arg name="z" default="0.1"/>
+
+  <!-- Lanzar Gazebo con el mundo vacío -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="paused" value="$(arg paused)"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="$(arg gui)"/>
+  </include>
+
+  <!-- Cargar la descripción URDF desde xacro -->
+  <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find fanuc_lrmate200id_support)/urdf/lrmate200id.xacro'" />
+
+  <!-- Spawn del modelo en Gazebo -->
+  <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" output="screen"
+        args="-param robot_description
+              -robot $(arg robot_namespace)
+              -x $(arg x) -y $(arg y) -z $(arg z)
+              -unpause true
+              -model fanuc_lrmate200id" />
+
+  <!-- Publica los TF -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
+    <param name="tf_prefix" value="$(arg tf_prefix)"/>
+  </node>
+
+  <!-- Cargar configuración de controladores desde tu archivo -->
+  <rosparam file="$(find fanuc_lrmate200id_support)/config/joint_names_lrmate200id.yaml" command="load"/>
+
+  <!-- Control manager para ros_control -->
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen"
+        args="joint_state_controller pos_joint_traj_controller"/>
+
+</launch>
+
+
+

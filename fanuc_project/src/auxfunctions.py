@@ -24,38 +24,49 @@ class Robot(object):
 
     def read_joint_velocities(self):
         return self.dq
+        
+def trasl(x, y, z):
+    return np.array([
+        [1, 0, 0, x],
+        [0, 1, 0, y],
+        [0, 0, 1, z],
+        [0, 0, 0, 1]
+    ])
 
-def dh(d, theta, a, alpha):
-    """
-    Calcula la matriz de transformación homogénea según la convención DH estándar.
-    """
-    sth = np.sin(theta)
-    cth = np.cos(theta)
-    sa  = np.sin(alpha)
-    ca  = np.cos(alpha)
+def rot_about(axis, angle):
+    axis = np.array(axis) / np.linalg.norm(axis)
+    x, y, z = axis
+    c = np.cos(angle)
+    s = np.sin(angle)
+    C = 1 - c
 
-    T = np.array([[cth, -sth*ca,  sth*sa, a*cth],
-                  [sth,  cth*ca, -cth*sa, a*sth],
-                  [0.0,     sa,     ca,     d],
-                  [0.0,    0.0,    0.0,   1.0]])
-    return T
+    R = np.array([
+        [c + x*x*C,     x*y*C - z*s, x*z*C + y*s, 0],
+        [y*x*C + z*s, c + y*y*C,     y*z*C - x*s, 0],
+        [z*x*C - y*s, z*y*C + x*s, c + z*z*C,     0],
+        [0,           0,           0,           1]
+    ])
+    return R
 
-
-# cinematica directa del fanuc200id
 def fkine_fanuc(q):
-    T01 = dh(0.330,     q[0],  0.050,  -pi/2)
-    T12 = dh(0.0,       q[1],  0.000,   pi/2)
-    T23 = dh(0.035,     q[2],  0.000,  -pi/2) 
-    T34 = dh(0.0,       q[3],  0.335,   pi/2) 
-    T45 = dh(0.0,       q[4],  0.080,  -pi/2)
-    T56 = dh(0.0,       q[5],  0.000,   0.0)
+    q1, q2, q3, q4, q5, q6 = q
 
-    T = T01 @ T12 @ T23 @ T34 @ T45 @ T56
+    # Joint origins (respecto a base)
+    T01 = trasl(0, 0, 0)      @ rot_about([0, 0, 1], q1)
+    T12 = trasl(0.050, 0, 0)  @ rot_about([0, 1, 0], q2)
+    T23 = trasl(0, 0, 0.330)  @ rot_about([0, -1, 0], q3)
+    T34 = trasl(0, 0, 0.035)  @ rot_about([-1, 0, 0], q4)
+    T45 = trasl(0.335, 0, 0)  @ rot_about([0, -1, 0], q5)
+    T56 = trasl(0.080, 0, 0)  @ rot_about([-1, 0, 0], q6)
+    
+    '''
+    manejar esta parte cuando se agregue la garra
+    # tool0 (RPY = pi, -pi/2, 0)
+    T6_tool0 = rot_about([1, 0, 0], np.pi) @ rot_about([0, 1, 0], -np.pi/2)
+    '''
+
+    T = T01 @ T12 @ T23 @ T34 @ T45 @ T56 #@ T6_tool0
     return T
-
-
-
-
 
 def jacobian_position(q, delta=0.0001):
     # Alocacion de memoria
@@ -78,31 +89,39 @@ def jacobian_position(q, delta=0.0001):
         J[:,i] = 1/delta * (dx-x)
     return J
 
-    
-def ikine(xdes, q0):
-    """
-    Calcular la cinematica inversa de UR5 numericamente a partir de la
-    configuracion articular inicial de q0. Emplear el metodo de newton
-    """
-    fqact = open("/tmp/error_newton.txt", "w")
-    epsilon = 0.00001
-    max_iter = 10000
-    delta = 0.00000001
+'''
+Lìmites cartesianos (de limits.py)
+X: [-0.780, 0.792]
+Y: [-0.787, 0.791]
+Z: [-0.681, 0.746]
+'''
+def ikine(xdes, q0, ql, qu):
+    epsilon = 1e-5
+    max_iter = 1000
+    delta = 1e-6
+    umbral_cond = 1e3
+    k = 1e-2 
     q = copy(q0)
     for i in range(max_iter):
-      # Main loop
-      T = fkine_fanuc(q)
-      pos = T[0:3,3]
-      er = xdes - pos
-      if (np.linalg.norm(er) < epsilon):
-        break
-      J = jacobian_position(q, delta)
-      #Newton
-      q = q + np.dot(np.linalg.pinv(J), er)
+        T = fkine_fanuc(q)
+        pos = T[0:3, 3]
+        er = xdes - pos
+        if np.linalg.norm(er) < epsilon:
+            break
+        J = jacobian_position(q, delta)
+        cond = np.linalg.cond(J)
+        if cond < umbral_cond:
+            # Jacobiano bien condicionado: usamos pseudoinversa estándar
+            J_pinv = np.linalg.pinv(J)
+        else:
+            # Jacobiano mal condicionado: usar Damped Least Squares
+            JT = J.T
+            JJT = J @ JT
+            amort = k**2 * np.eye(J.shape[0])
+            J_pinv = JT @ np.linalg.inv(JJT + amort)
+        q = q + np.dot(J_pinv, er)
+        q = np.clip(q, ql, qu)
     return q
-   
-   
- 
 
 
 def rot2quat(R):

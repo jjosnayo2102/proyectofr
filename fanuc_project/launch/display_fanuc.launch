@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- Procesa el archivo XACRO desde la subcarpeta -->
+  <param name="robot_description" command="$(find xacro)/xacro '$(find fanuc_project)/fanuc_lrmate200id_support/urdf/lrmate200id.xacro'" />
+
+  <!-- Publica los estados de las articulaciones -->
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" />
+
+  <!-- Publica la transformación TF del robot -->
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
+
+  <!-- Lanza RViz -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find fanuc_project)/fanuc_lrmate200id_support/view_robot.rviz" required="true" />
+
+</launch>
+
+
