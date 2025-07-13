@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+
+import rospy
+from sensor_msgs.msg import JointState
+from markers import *
+from auxfunctions import *
+cnt = 0
+if __name__ == '__main__':
+    rospy.init_node("testKineControlPosition")
+    pub = rospy.Publisher('joint_states', JointState, queue_size=10)
+    bmarker_current  = BallMarker(color['RED'])
+    bmarker_desired = BallMarker(color['GREEN'])
+    jnames = ['joint_1', 'joint_2','joint_3','joint_4','joint_5','joint_6']
+    xd = np.array([0.5,0,0])
+    q0 = np.array([0.0, 0, 0, 0, 0, 0])
+    T = fkine_fanuc(q0)
+    x0 = T[0:3,3]
+    # rojo: posicion lograda
+    bmarker_current.xyz(x0)
+    # verde: posicion deseada
+    bmarker_desired.xyz(xd)
+    jstate = JointState()
+    jstate.header.stamp = rospy.Time.now()
+    jstate.name = jnames
+    jstate.position = q0
+    freq = 200
+    dt = 1.0/freq
+    rate = rospy.Rate(freq)
+    q = copy(q0)
+    while not rospy.is_shutdown():
+        jstate.header.stamp = rospy.Time.now()
+        Tq = fkine_fanuc(q)
+        J = jacobian_position(q)
+        x = Tq[0:3,3]
+        e = x-xd 
+        k = 1
+        de = -k*e
+        Jq = np.linalg.pinv(J)
+        epsilon = 0.0001
+        dq = Jq.dot(de)
+        if np.linalg.matrix_rank(J,0.0001) == 7:
+           q =  q+dt*((J.T).dot(np.linalg.inv(J.dot(J.T)))).dot(de)
+        else:      
+           q = q+dt*dq
+        if (np.linalg.norm(e)<epsilon):
+           print("Se llegó al punto deseado en {:.3} segundos".format(cnt*dt))
+           break
+        cnt = cnt+1
+        if (cnt > 1e5): 
+            print("Se excedió el número de iteraciones")
+            break                                                    
+        jstate.position = q
+        bmarker_current.xyz(x)
+        pub.publish(jstate)
+        bmarker_desired.publish()
+        bmarker_current.publish()
+        rate.sleep()

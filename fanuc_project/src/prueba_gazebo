@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+import rospy
+import numpy as np
+import actionlib
+from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryGoal
+from trajectory_msgs.msg import JointTrajectoryPoint
+from sensor_msgs.msg import JointState
+from auxfunctions import ikine, fkine_fanuc
+
+# Variables globales
+joint_state = None
+
+def joint_state_callback(msg):
+    global joint_state
+    joint_state = msg
+
+if __name__ == '__main__':
+    rospy.init_node('command_fanuc_gazebo')
+
+    # Suscribirse para obtener la posición actual del robot
+    rospy.Subscriber('/joint_states', JointState, joint_state_callback)
+
+    rospy.loginfo("Esperando estado de articulaciones...")
+    while joint_state is None and not rospy.is_shutdown():
+        rospy.sleep(0.1)
+
+    joint_names = ['joint_1', 'joint_2', 'joint_3', 'joint_4', 'joint_5', 'joint_6']
+    name_to_pos = dict(zip(joint_state.name, joint_state.position))
+    q_actual = np.array([name_to_pos[j] for j in joint_names])
+
+    # Posición cartesiana deseada
+    xd = np.array([0.5, 0.5, 0.0])
+
+    # Límites articulares
+    q0 = np.zeros(6)
+    ql = np.array([-2.967, -1.745, -1.222, -3.316, -2.181, -6.283])
+    qu = np.array([ 2.967,  2.530,  3.577,  3.316,  2.181,  6.283])
+
+    # Calcular posición articular deseada
+    q_deseado = ikine(xd, q0, ql, qu)
+    rospy.loginfo("q deseado: " + str(np.round(q_deseado, 4)))
+
+    # Interpolación entre q_actual y q_deseado
+    n_steps = 50
+    traj_points = []
+    for i in range(n_steps + 1):
+        alpha = i / n_steps
+        q_interp = (1 - alpha) * q_actual + alpha * q_deseado
+
+        p = JointTrajectoryPoint()
+        p.positions = q_interp.tolist()
+        p.time_from_start = rospy.Duration(2.0 * alpha)  # tiempo total de 2 segundos
+        traj_points.append(p)
+
+    # Crear y enviar goal
+    client = actionlib.SimpleActionClient(
+        '/pos_joint_traj_controller/follow_joint_trajectory',
+        FollowJointTrajectoryAction
+    )
+
+    rospy.loginfo("Esperando al servidor de trayectoria...")
+    client.wait_for_server()
+    rospy.loginfo("Conectado al servidor.")
+
+    goal = FollowJointTrajectoryGoal()
+    goal.trajectory.joint_names = joint_names
+    goal.trajectory.points = traj_points
+    # Omitimos header.stamp para que el controlador inicie automáticamente
+    client.send_goal(goal)
+    client.wait_for_result()
+    rospy.loginfo("Movimiento completado.")
+

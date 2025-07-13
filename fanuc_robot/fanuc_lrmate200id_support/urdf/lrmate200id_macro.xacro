@@ -3,8 +3,14 @@
   <xacro:include filename="$(find fanuc_resources)/urdf/common_materials.xacro"/>
 
   <xacro:macro name="fanuc_lrmate200id" params="prefix">
+    <link name="world" />
     <!-- links: main serial chain -->
     <link name="${prefix}base_link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="2.0"/>
+        <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+      </inertial>
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
@@ -19,7 +25,13 @@
         </geometry>
       </collision>
     </link>
+
     <link name="${prefix}link_1">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="1.5"/>
+        <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+      </inertial>
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
@@ -34,7 +46,13 @@
         </geometry>
       </collision>
     </link>
+
     <link name="${prefix}link_2">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="1.2"/>
+        <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+      </inertial>
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
@@ -49,7 +67,13 @@
         </geometry>
       </collision>
     </link>
+
     <link name="${prefix}link_3">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="1.0"/>
+        <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+      </inertial>
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
@@ -64,7 +88,13 @@
         </geometry>
       </collision>
     </link>
+
     <link name="${prefix}link_4">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.8"/>
+        <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+      </inertial>
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
@@ -79,7 +109,13 @@
         </geometry>
       </collision>
     </link>
+
     <link name="${prefix}link_5">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.6"/>
+        <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+      </inertial>
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
@@ -94,7 +130,13 @@
         </geometry>
       </collision>
     </link>
+
     <link name="${prefix}link_6">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.5"/>
+        <inertia ixx="0.01" ixy="0.0" ixz="0.0" iyy="0.01" iyz="0.0" izz="0.01"/>
+      </inertial>
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
@@ -116,45 +158,50 @@
       <parent link="${prefix}base_link" />
       <child link="${prefix}link_1" />
       <axis xyz="0 0 1" />
-      <limit effort="0" lower="${radians(-170)}" upper="${radians(170)}" velocity="${radians(450)}" />
+      <limit effort="30" lower="${radians(-170)}" upper="${radians(170)}" velocity="${radians(450)}" />
     </joint>
+
     <joint name="${prefix}joint_2" type="revolute">
       <origin xyz="0.050 0 0" rpy="0 0 0"/>
       <parent link="${prefix}link_1" />
       <child link="${prefix}link_2" />
       <axis xyz="0 1 0" />
-      <limit effort="0" lower="${radians(-100)}" upper="${radians(145)}" velocity="${radians(380)}" />
+      <limit effort="30" lower="${radians(-100)}" upper="${radians(145)}" velocity="${radians(380)}" />
     </joint>
+
     <joint name="${prefix}joint_3" type="revolute">
       <origin xyz="0 0 0.330" rpy="0 0 0"/>
       <parent link="${prefix}link_2" />
       <child link="${prefix}link_3" />
       <axis xyz="0 -1 0" />
-      <limit effort="0" lower="${radians(-70)}" upper="${radians(205)}" velocity="${radians(520)}" />
+      <limit effort="30" lower="${radians(-70)}" upper="${radians(205)}" velocity="${radians(520)}" />
     </joint>
+
     <joint name="${prefix}joint_4" type="revolute">
       <origin xyz="0 0 0.035" rpy="0 0 0"/>
       <parent link="${prefix}link_3"/>
       <child link="${prefix}link_4"/>
       <axis xyz="-1 0 0"/>
-      <limit effort="0" lower="${radians(-190)}" upper="${radians(190)}" velocity="${radians(550)}" />
+      <limit effort="20" lower="${radians(-190)}" upper="${radians(190)}" velocity="${radians(550)}" />
     </joint>
+
     <joint name="${prefix}joint_5" type="revolute">
       <origin xyz="0.335 0 0" rpy="0 0 0"/>
       <parent link="${prefix}link_4"/>
       <child link="${prefix}link_5"/>
       <axis xyz="0 -1 0"/>
-      <limit effort="0" lower="${radians(-125)}" upper="${radians(125)}" velocity="${radians(545)}" />
+      <limit effort="20" lower="${radians(-125)}" upper="${radians(125)}" velocity="${radians(545)}" />
     </joint>
+
     <joint name="${prefix}joint_6" type="revolute">
       <origin xyz="0.080 0 0" rpy="0 0 0"/>
       <parent link="${prefix}link_5"/>
       <child link="${prefix}link_6"/>
       <axis xyz="-1 0 0"/>
-      <limit effort="0" lower="${radians(-360)}" upper="${radians(360)}" velocity="${radians(1000)}" />
+      <limit effort="10" lower="${radians(-360)}" upper="${radians(360)}" velocity="${radians(1000)}" />
     </joint>
 
-    <!-- ROS-Industrial 'base' frame: base_link to Fanuc World Coordinates transform -->
+    <!-- ROS-Industrial 'base' frame -->
     <link name="${prefix}base" />
     <joint name="${prefix}base_link-base" type="fixed">
       <origin xyz="0 0 0.330" rpy="0 0 0"/>
@@ -162,7 +209,7 @@
       <child link="${prefix}base"/>
     </joint>
 
-    <!-- ROS-Industrial 'flange' frame: attachment point for EEF models -->
+    <!-- 'flange' and 'tool0' -->
     <link name="${prefix}flange" />
     <joint name="${prefix}link_6-flange" type="fixed">
       <origin xyz="0 0 0" rpy="0 0 0" />
@@ -170,12 +217,92 @@
       <child link="${prefix}flange" />
     </joint>
 
-    <!-- ROS-Industrial 'tool0' frame: all-zeros tool frame -->
     <link name="${prefix}tool0" />
     <joint name="${prefix}flange-tool0" type="fixed">
       <origin xyz="0 0 0" rpy="${pi} ${-pi/2.0} 0" />
       <parent link="${prefix}flange" />
       <child link="${prefix}tool0" />
     </joint>
+
+    <!-- Gazebo ROS Control Plugin -->
+    <gazebo>
+      <plugin name="gazebo_ros_control" filename="libgazebo_ros_control.so">
+        <robotNamespace>/</robotNamespace>
+      </plugin>
+    </gazebo>
+
+    <!-- Transmissions -->
+    <transmission name="${prefix}trans_joint_1">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${prefix}joint_1">
+        <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+      </joint>
+      <actuator name="${prefix}motor_joint_1">
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
+
+    <!-- Repite para los demás joints -->
+    <transmission name="${prefix}trans_joint_2">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${prefix}joint_2">
+        <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+      </joint>
+      <actuator name="${prefix}motor_joint_2">
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
+
+    <transmission name="${prefix}trans_joint_3">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${prefix}joint_3">
+        <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+      </joint>
+      <actuator name="${prefix}motor_joint_3">
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
+
+    <transmission name="${prefix}trans_joint_4">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${prefix}joint_4">
+        <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+      </joint>
+      <actuator name="${prefix}motor_joint_4">
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
+
+    <transmission name="${prefix}trans_joint_5">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${prefix}joint_5">
+        <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+      </joint>
+      <actuator name="${prefix}motor_joint_5">
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
+
+    <transmission name="${prefix}trans_joint_6">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${prefix}joint_6">
+        <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+      </joint>
+      <actuator name="${prefix}motor_joint_6">
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
+    
+    <!-- Anchor to Gazebo world -->
+    <gazebo reference="${prefix}base_link">
+      <pose>0 0 0 0 0 0</pose>
+    </gazebo>
+    <joint name="${prefix}world_joint" type="fixed">
+      <parent link="world"/>
+      <child link="${prefix}base_link"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+    </joint>
+
   </xacro:macro>
 </robot>
+

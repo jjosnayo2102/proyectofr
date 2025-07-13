@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+
+import rospy
+import numpy as np
+import actionlib
+from copy import copy
+from sensor_msgs.msg import JointState
+from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryGoal
+from trajectory_msgs.msg import JointTrajectoryPoint
+from auxfunctions import fkine_fanuc, jacobian_position
+
+# Variable global para almacenar la posición actual
+joint_state = None
+
+def joint_state_callback(msg):
+    global joint_state
+    joint_state = msg
+
+if __name__ == '__main__':
+    rospy.init_node("kinematic_control_traj_gazebo")
+
+    # Suscribirse al estado actual de las articulaciones
+    rospy.Subscriber('/joint_states', JointState, joint_state_callback)
+
+    rospy.loginfo("Esperando datos de /joint_states...")
+    while joint_state is None and not rospy.is_shutdown():
+        rospy.sleep(0.1)
+
+    # Obtener posición actual del robot
+    joint_names = ['joint_1', 'joint_2','joint_3','joint_4','joint_5','joint_6']
+    name_to_pos = dict(zip(joint_state.name, joint_state.position))
+    q_actual = np.array([name_to_pos[j] for j in joint_names])
+
+    # Posición deseada en coordenadas cartesianas
+    xd = np.array([0.5, 0.0, 0.0])  # Cambia según lo que quieras probar
+
+    # Parámetros del lazo de control cinemático
+    freq = 200
+    dt = 1.0 / freq
+    epsilon = 0.001
+    max_iter = 5000
+    q = copy(q_actual)
+    cnt = 0
+
+    traj_points = []
+
+    while not rospy.is_shutdown():
+        Tq = fkine_fanuc(q)
+        x = Tq[0:3, 3]
+        e = x - xd
+        de = -e
+
+        J = jacobian_position(q)
+        dq = np.linalg.pinv(J).dot(de)
+
+        if np.linalg.matrix_rank(J, 0.0001) == 6:
+            dq = (J.T).dot(np.linalg.inv(J.dot(J.T))).dot(de)
+
+        q = q + dt * dq
+
+        # Guardar punto de trayectoria
+        point = JointTrajectoryPoint()
+        point.positions = q.tolist()
+        point.time_from_start = rospy.Duration(cnt * dt)
+        traj_points.append(point)
+
+        # Condición de parada
+        if np.linalg.norm(e) < epsilon:
+            rospy.loginfo(f"Objetivo alcanzado en {cnt*dt:.3f} segundos")
+            break
+
+        cnt += 1
+        if cnt > max_iter:
+            rospy.logwarn("Se excedió el número máximo de iteraciones")
+            break
+
+    # Enviar la trayectoria completa al controlador
+    client = actionlib.SimpleActionClient(
+        '/pos_joint_traj_controller/follow_joint_trajectory',
+        FollowJointTrajectoryAction
+    )
+
+    rospy.loginfo("Esperando al servidor de trayectoria...")
+    client.wait_for_server()
+    rospy.loginfo("Conectado al servidor.")
+
+    goal = FollowJointTrajectoryGoal()
+    goal.trajectory.joint_names = joint_names
+    goal.trajectory.points = traj_points
+
+    rospy.loginfo("Enviando trayectoria de control cinemático al robot...")
+    client.send_goal(goal)
+    client.wait_for_result()
+    rospy.loginfo("Movimiento completado.")
+
+
+
