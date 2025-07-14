@@ -26,20 +26,29 @@ if __name__ == '__main__':
     while joint_state is None and not rospy.is_shutdown():
         rospy.sleep(0.1)
 
-    # Obtener posición actual del robot
-    joint_names = ['joint_1', 'joint_2','joint_3','joint_4','joint_5','joint_6']
+    # Nombres de todas las articulaciones (incluyendo gripper)
+    joint_names = [
+        'joint_1', 'joint_2','joint_3','joint_4','joint_5','joint_6',
+        'gripper_base_finger_1', 'gripper_base_finger_2'
+    ]
+
+    # Obtener posición actual
     name_to_pos = dict(zip(joint_state.name, joint_state.position))
-    q_actual = np.array([name_to_pos[j] for j in joint_names])
+    q_all = np.array([name_to_pos[j] for j in joint_names])
+
+    # Separar brazo y gripper
+    q_arm = q_all[:6]  # Solo articulaciones del brazo
+    gripper_pos = np.array([0, 0])
 
     # Posición deseada en coordenadas cartesianas
-    xd = np.array([0.5, 0.5, 0.0])  # Cambia según lo que quieras probar
+    xd = np.array([0.5, 0, 0.0])  # Cambia según lo que quieras probar
 
-    # Parámetros del lazo de control cinemático
+    # Parámetros de control
     freq = 200
     dt = 1.0 / freq
     epsilon = 0.001
     max_iter = 5000
-    q = copy(q_actual)
+    q = copy(q_arm)
     cnt = 0
 
     traj_points = []
@@ -51,20 +60,21 @@ if __name__ == '__main__':
         de = -e
 
         J = jacobian_position(q)
-        dq = np.linalg.pinv(J).dot(de)
-
         if np.linalg.matrix_rank(J, 0.0001) == 6:
-            dq = (J.T).dot(np.linalg.inv(J.dot(J.T))).dot(de)
+            dq = (J.T @ np.linalg.inv(J @ J.T)) @ de
+        else:
+            dq = np.linalg.pinv(J).dot(de)
 
         q = q + dt * dq
 
-        # Guardar punto de trayectoria
+        # Concatenar con el gripper fijo
+        q_total = np.concatenate((q, gripper_pos))
+
         point = JointTrajectoryPoint()
-        point.positions = q.tolist()
+        point.positions = q_total.tolist()
         point.time_from_start = rospy.Duration(cnt * dt)
         traj_points.append(point)
 
-        # Condición de parada
         if np.linalg.norm(e) < epsilon:
             rospy.loginfo(f"Objetivo alcanzado en {cnt*dt:.3f} segundos")
             break
@@ -74,7 +84,7 @@ if __name__ == '__main__':
             rospy.logwarn("Se excedió el número máximo de iteraciones")
             break
 
-    # Enviar la trayectoria completa al controlador
+    # Enviar trayectoria al controlador
     client = actionlib.SimpleActionClient(
         '/pos_joint_traj_controller/follow_joint_trajectory',
         FollowJointTrajectoryAction
@@ -92,6 +102,7 @@ if __name__ == '__main__':
     client.send_goal(goal)
     client.wait_for_result()
     rospy.loginfo("Movimiento completado.")
+
 
 
 

@@ -4,54 +4,76 @@ import rospy
 from sensor_msgs.msg import JointState
 from markers import *
 from auxfunctions import *
-cnt = 0
+import numpy as np
+from copy import copy
+
 if __name__ == '__main__':
     rospy.init_node("testKineControlPosition")
     pub = rospy.Publisher('joint_states', JointState, queue_size=10)
+
     bmarker_current  = BallMarker(color['RED'])
     bmarker_desired = BallMarker(color['GREEN'])
-    jnames = ['joint_1', 'joint_2','joint_3','joint_4','joint_5','joint_6']
-    xd = np.array([0.5,0,0])
+
+    # Nombres de articulaciones (6 del brazo + 2 del gripper)
+    jnames = ['joint_1', 'joint_2','joint_3','joint_4','joint_5','joint_6',
+              'gripper_base_finger_1', 'gripper_base_finger_2']
+
+    # Posición deseada en espacio cartesiano
+    xd = np.array([0.5, 0.5, 0])
+
+    # Estado inicial: 6 del brazo + 2 del gripper
     q0 = np.array([0.0, 0, 0, 0, 0, 0])
+
+    # Mostrar marcadores
     T = fkine_fanuc(q0)
-    x0 = T[0:3,3]
-    # rojo: posicion lograda
+    x0 = T[0:3, 3]
     bmarker_current.xyz(x0)
-    # verde: posicion deseada
     bmarker_desired.xyz(xd)
-    jstate = JointState()
-    jstate.header.stamp = rospy.Time.now()
-    jstate.name = jnames
-    jstate.position = q0
+
     freq = 200
-    dt = 1.0/freq
+    dt = 1.0 / freq
     rate = rospy.Rate(freq)
+
     q = copy(q0)
+    cnt = 0
+    epsilon = 0.0001
+    k = 1.0
+
+    gripper_pos = np.array([0, 0])
+
     while not rospy.is_shutdown():
-        jstate.header.stamp = rospy.Time.now()
-        Tq = fkine_fanuc(q)
+        T = fkine_fanuc(q)
         J = jacobian_position(q)
-        x = Tq[0:3,3]
-        e = x-xd 
-        k = 1
-        de = -k*e
-        Jq = np.linalg.pinv(J)
-        epsilon = 0.0001
-        dq = Jq.dot(de)
-        if np.linalg.matrix_rank(J,0.0001) == 7:
-           q =  q+dt*((J.T).dot(np.linalg.inv(J.dot(J.T)))).dot(de)
-        else:      
-           q = q+dt*dq
-        if (np.linalg.norm(e)<epsilon):
-           print("Se llegó al punto deseado en {:.3} segundos".format(cnt*dt))
-           break
-        cnt = cnt+1
-        if (cnt > 1e5): 
+        x = T[0:3, 3]
+        e = x - xd
+        de = -k * e
+        dq = np.linalg.pinv(J).dot(de)
+
+        if np.linalg.matrix_rank(J, 0.0001) == 6:
+            q = q + dt * (J.T @ np.linalg.inv(J @ J.T)) @ de
+        else:
+            q = q + dt * dq
+
+        if np.linalg.norm(e) < epsilon:
+            print("Se llegó al punto deseado en {:.3f} segundos".format(cnt * dt))
+            break
+
+        cnt += 1
+        if cnt > 1e5:
             print("Se excedió el número de iteraciones")
-            break                                                    
-        jstate.position = q
+            break
+
+        # Concatenar gripper fijo al final
+        q_total = np.concatenate((q, gripper_pos))
+
+        jstate = JointState()
+        jstate.header.stamp = rospy.Time.now()
+        jstate.name = jnames
+        jstate.position = q_total
+
         bmarker_current.xyz(x)
         pub.publish(jstate)
         bmarker_desired.publish()
         bmarker_current.publish()
         rate.sleep()
+

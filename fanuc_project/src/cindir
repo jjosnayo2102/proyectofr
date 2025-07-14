@@ -8,7 +8,7 @@ if __name__ == '__main__':
     rospy.init_node("testForwardKine")
     pub = rospy.Publisher('joint_states', JointState, queue_size=1)
     bmarker = BallMarker(color['GREEN'])
-    jnames = ['joint_1', 'joint_2','joint_3','joint_4','joint_5','joint_6','gripper_base-finger_1', 'gripper_base-finger_2']
+    jnames=['joint_1','joint_2','joint_3','joint_4','joint_5','joint_6','gripper_base_finger_1', 'gripper_base_finger_2']
     q = np.array([0, 0, 0, 0, 0, 0, 0, 0])
     T = fkine_fanuc(q[:6])
     print(np.round(T, 4))
