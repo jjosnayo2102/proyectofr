@@ -217,6 +217,109 @@
       <child link="${prefix}flange" />
     </joint>
 
+    <!-- Gripper base -->
+    <link name="${prefix}gripper_base">
+      <visual>
+        <origin xyz="0.0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.02 0.2 0.05"/>
+        </geometry>
+        <material name="gray">
+          <color rgba="0.5 0.5 0.5 1.0"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0.0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.02 0.2 0.05"/>
+        </geometry>
+      </collision>
+    </link>
+    <gazebo reference="${prefix}gripper_base">
+      <material>Gazebo/Grey</material>
+    </gazebo>
+
+    <joint name="${prefix}link_6-gripper_base" type="fixed">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <parent link="${prefix}link_6"/>
+      <child link="${prefix}gripper_base"/>
+    </joint>
+
+
+    <!-- Dedo izquierdo (finger_1) -->
+    <link name="${prefix}finger_1">
+      <inertial>
+        <origin xyz="0.05 0 0" rpy="0 0 0"/>
+        <mass value="0.1"/>
+        <inertia ixx="1e-4" ixy="0" ixz="0" iyy="1e-4" iyz="0" izz="1e-4"/>
+      </inertial>
+      <visual>
+        <origin xyz="0.03 0.037 0.001" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.10 0.02 0.03"/>
+        </geometry>
+        <material name="gray">
+          <color rgba="0.5 0.5 0.5 1.0"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0.03 0.037 0.001" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.10 0.02 0.03"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <gazebo reference="${prefix}finger_1">
+      <material>Gazebo/Grey</material>
+    </gazebo>
+
+
+    <joint name="${prefix}gripper_base_finger_1" type="prismatic">
+      <origin xyz="0.03 0.037 0.001" rpy="0 0 0"/>
+      <parent link="${prefix}gripper_base"/>
+      <child link="${prefix}finger_1"/>
+      <axis xyz="0 -1 0"/>   <!-- Cambia a -1 -->
+      <limit effort="1.0" lower="0" upper="0.04" velocity="0.1"/>
+    </joint>
+
+
+    <!-- Dedo derecho (finger_2) -->
+    <link name="${prefix}finger_2">
+      <inertial>
+        <origin xyz="0.05 0 0" rpy="0 0 0"/>
+        <mass value="0.1"/>
+        <inertia ixx="1e-4" ixy="0" ixz="0" iyy="1e-4" iyz="0" izz="1e-4"/>
+      </inertial>
+      <visual>
+        <origin xyz="0.03 -0.037 0.001" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.10 0.02 0.03"/>
+        </geometry>
+        <material name="gray">
+          <color rgba="0.5 0.5 0.5 1.0"/>
+        </material>
+      </visual>
+      <collision>
+        <origin xyz="0.03 -0.037 0.001" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.10 0.02 0.03"/>
+        </geometry>
+      </collision>
+    </link>
+
+    <gazebo reference="${prefix}finger_2">
+      <material>Gazebo/Grey</material>
+    </gazebo>
+
+    <joint name="${prefix}gripper_base_finger_2" type="prismatic">
+      <origin xyz="0.03 -0.037 0.001" rpy="0 0 0"/>
+      <parent link="${prefix}gripper_base"/>
+      <child link="${prefix}finger_2"/>
+      <axis xyz="0 1 0"/>
+      <limit effort="1.0" lower="0" upper="0.04" velocity="0.1"/>
+    </joint>
+    
     <link name="${prefix}tool0" />
     <joint name="${prefix}flange-tool0" type="fixed">
       <origin xyz="0 0 0" rpy="${pi} ${-pi/2.0} 0" />
@@ -293,6 +396,27 @@
       </actuator>
     </transmission>
     
+    <transmission name="${prefix}trans_gripper_finger_1">
+  <type>transmission_interface/SimpleTransmission</type>
+  <joint name="${prefix}gripper_base_finger_1">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+  </joint>
+  <actuator name="${prefix}motor_finger_1">
+    <mechanicalReduction>1</mechanicalReduction>
+  </actuator>
+</transmission>
+
+<transmission name="${prefix}trans_gripper_finger_2">
+  <type>transmission_interface/SimpleTransmission</type>
+  <joint name="${prefix}gripper_base_finger_2">
+    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+  </joint>
+  <actuator name="${prefix}motor_finger_2">
+    <mechanicalReduction>1</mechanicalReduction>
+  </actuator>
+</transmission>
+
+    
     <!-- Anchor to Gazebo world -->
     <gazebo reference="${prefix}base_link">
       <pose>0 0 0 0 0 0</pose>
@@ -305,4 +429,3 @@
 
   </xacro:macro>
 </robot>
-

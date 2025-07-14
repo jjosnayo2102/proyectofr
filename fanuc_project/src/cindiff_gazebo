@@ -32,7 +32,7 @@ if __name__ == '__main__':
     q_actual = np.array([name_to_pos[j] for j in joint_names])
 
     # Posición deseada en coordenadas cartesianas
-    xd = np.array([0.5, 0.0, 0.0])  # Cambia según lo que quieras probar
+    xd = np.array([0.5, 0.5, 0.0])  # Cambia según lo que quieras probar
 
     # Parámetros del lazo de control cinemático
     freq = 200
