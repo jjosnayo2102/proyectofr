@@ -4,13 +4,13 @@ import rbdl
 pi = np.pi
 
 class Robot(object):
-    def __init__(self, q0, dq0, ndof, dt):
+    def __init__(self, q0, dq0, ndof, dt, urdf_path):
         self.q = q0    # numpy array (ndof x 1)
         self.dq = dq0  # numpy array (ndof x 1)
         self.M = np.zeros([ndof, ndof])
         self.b = np.zeros(ndof)
         self.dt = dt
-        self.robot = rbdl.loadModel('../urdf/fanuc125.urdf')
+        self.robot =  rbdl.loadModel(urdf_path)
 
     def send_command(self, tau):
         rbdl.CompositeRigidBodyAlgorithm(self.robot, self.q, self.M)
@@ -19,6 +19,11 @@ class Robot(object):
         self.q = self.q + self.dt*self.dq
         self.dq = self.dq + self.dt*ddq
 
+    def read_joint_positions(self):
+        return self.q
+
+    def read_joint_velocities(self):
+        return self.dq
     def read_joint_positions(self):
         return self.q
 

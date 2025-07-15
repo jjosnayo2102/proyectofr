@@ -30,7 +30,7 @@ def obtener_fk_pose(q_kdl, fk_solver):
 def control_cinematico_diferencial(chain, q_inicio, pose_objetivo, pasos, dt):
     """
     Ejecuta control cinemático diferencial usando IK de velocidad.
-    Retorna una lista de JointTrajectoryPoint.
+    Retorna una lista de JointTrajectoryPoint con valores del gripper añadidos.
     """
     ik_vel = kdl.ChainIkSolverVel_pinv(chain)
     fk_solver = kdl.ChainFkSolverPos_recursive(chain)
@@ -42,10 +42,12 @@ def control_cinematico_diferencial(chain, q_inicio, pose_objetivo, pasos, dt):
     pose_inicial = obtener_fk_pose(q_actual, fk_solver)
     trayectoria = []
 
+    gripper_pos = [0.04, 0.04]  # valores fijos del gripper (abierto)
+
     for paso in range(1, pasos + 1):
         alpha = paso / pasos
         pose_deseada = interpolar_cartesianamente(pose_inicial, pose_objetivo, alpha)
-        # Calcular diferencia de transformación
+
         delta_twist = kdl.diff(obtener_fk_pose(q_actual, fk_solver), pose_deseada)
         
         dq = kdl.JntArray(chain.getNrOfJoints())
@@ -58,9 +60,13 @@ def control_cinematico_diferencial(chain, q_inicio, pose_objetivo, pasos, dt):
         for i in range(q_actual.rows()):
             q_actual[i] += dq[i] * dt  # integración explícita simple
 
+        # Concatenar con gripper fijo
+        q_point = [q_actual[i] for i in range(q_actual.rows())]
+        q_total = q_point + gripper_pos
+
         # Guardar punto de trayectoria
         point = JointTrajectoryPoint()
-        point.positions = [q_actual[i] for i in range(q_actual.rows())]
+        point.positions = q_total
         point.time_from_start = rospy.Duration(paso * dt)
         trayectoria.append(point)
 
@@ -69,7 +75,12 @@ def control_cinematico_diferencial(chain, q_inicio, pose_objetivo, pasos, dt):
 if __name__ == '__main__':
     rospy.init_node('fanuc_control_cinematico')
 
-    joint_names = ['joint_1', 'joint_2','joint_3','joint_4','joint_5','joint_6']
+    # Articulaciones del brazo + gripper
+    joint_names = [
+        'joint_1', 'joint_2', 'joint_3', 'joint_4', 'joint_5', 'joint_6',
+        'gripper_base_finger_1', 'gripper_base_finger_2'
+    ]
+
     q_min_vals = [-2.967, -1.745, -1.222, -3.316, -2.181, -6.283]
     q_max_vals = [ 2.967,  2.530,  3.577,  3.316,  2.181,  6.283]
 
@@ -77,7 +88,7 @@ if __name__ == '__main__':
     rospy.loginfo("Esperando /joint_states...")
     joint_state = rospy.wait_for_message("/joint_states", JointState)
     name_to_pos = dict(zip(joint_state.name, joint_state.position))
-    q_actual_np = np.array([name_to_pos[j] for j in joint_names])
+    q_actual_np = np.array([name_to_pos[j] for j in joint_names[:6]])  # solo brazo
 
     # Cargar modelo URDF desde xacro
     xacro_path = '/home/jjosnayo/lab_ws/src/proyectofr/fanuc_robot/fanuc_lrmate200id_support/urdf/lrmate200id.xacro'
@@ -85,13 +96,13 @@ if __name__ == '__main__':
     _, tree = treeFromUrdfModel(robot)
     chain = tree.getChain("base_link", "tool0")
 
-    # Preparar estado articular inicial
+    # Preparar estado articular inicial (solo brazo)
     q_inicio = kdl.JntArray(len(q_actual_np))
     for i, val in enumerate(q_actual_np):
         q_inicio[i] = val
 
     # Definir pose objetivo cartesiana
-    pose_objetivo = kdl.Frame(kdl.Rotation.RPY(0, 0, 0), kdl.Vector(0.5, 0.5, 0))
+    pose_objetivo = kdl.Frame(kdl.Rotation.RPY(0, 0, 0), kdl.Vector(0.5, 0, 0))
 
     # Generar trayectoria con control cinemático diferencial
     pasos = 40
@@ -115,5 +126,4 @@ if __name__ == '__main__':
     client.send_goal(goal)
     client.wait_for_result()
     rospy.loginfo("Movimiento completado.")
-
 

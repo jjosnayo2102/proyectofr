@@ -1,5 +1,20 @@
 <?xml version="1.0"?>
 <robot name="fanuc_lrmate200id" xmlns:xacro="http://wiki.ros.org/xacro">
-  <xacro:include filename="$(find fanuc_lrmate200id_support)/urdf/lrmate200id_macro.xacro"/>
-  <xacro:fanuc_lrmate200id prefix=""/>
+
+  <!-- Declaramos el argumento -->
+  <xacro:arg name="modo_dinamico" default="true"/>
+
+  <!-- Usa el argumento directamente con $(arg …) -->
+  <xacro:if value="$(arg modo_dinamico)">
+    <xacro:include filename="$(find fanuc_lrmate200id_support)/urdf/lrmate200id_macro_din.xacro"/>
+    <xacro:fanuc_lrmate200id prefix=""/>
+  </xacro:if>
+
+  <xacro:unless value="$(arg modo_dinamico)">
+    <xacro:include filename="$(find fanuc_lrmate200id_support)/urdf/lrmate200id_macro.xacro"/>
+    <xacro:fanuc_lrmate200id prefix=""/>
+  </xacro:unless>
+
 </robot>
+
+

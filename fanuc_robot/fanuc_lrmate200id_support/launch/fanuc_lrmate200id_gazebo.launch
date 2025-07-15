@@ -1,26 +1,26 @@
 <?xml version="1.0"?>
 <launch>
 
-  <!-- Cargar descripción del robot desde Xacro -->
+  <!-- Cargar descripción del robot desde Xacro con modo cinemático -->
   <param name="robot_description"
-         command="$(find xacro)/xacro --inorder $(find fanuc_lrmate200id_support)/urdf/lrmate200id.xacro" />
+         command="$(find xacro)/xacro --inorder $(find fanuc_lrmate200id_support)/urdf/lrmate200id.xacro modo_dinamico:=false" />
 
-  <!-- Lanzar mundo vacío de Gazebo con GUI activa -->
+  <!-- Lanzar Gazebo -->
   <include file="$(find gazebo_ros)/launch/empty_world.launch" />
 
-  <!-- Spawnear el robot en la posición (0, 0, 0) -->
+  <!-- Spawnear el robot -->
   <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" output="screen"
         args="-param robot_description -urdf -model fanuc_lrmate200id" />
 
-  <!-- Publicar estados del robot -->
+  <!-- Publicar estados -->
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" />
 
-  <!-- Cargar y lanzar controladores -->
+  <!-- Cargar controladores cinemáticos -->
   <rosparam file="$(find fanuc_lrmate200id_support)/config/lrmate200id_controllers.yaml" command="load" />
-  <node name="controller_spawner" pkg="controller_manager" type="spawner"
+
+  <!-- Spawnear controladores -->
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" output="screen"
         args="joint_state_controller pos_joint_traj_controller" />
 
 </launch>
-
-
 

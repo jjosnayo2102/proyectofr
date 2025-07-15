@@ -41,7 +41,7 @@ if __name__ == '__main__':
     gripper_pos = np.array([0, 0])
 
     # Posición deseada en coordenadas cartesianas
-    xd = np.array([0.5, 0, 0.0])  # Cambia según lo que quieras probar
+    xd = np.array([0.5, 0.5, 0.0])  # Cambia según lo que quieras probar
 
     # Parámetros de control
     freq = 200

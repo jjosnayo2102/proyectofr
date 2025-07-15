@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+import rospy
+import numpy as np
+from std_msgs.msg import Float64
+from sensor_msgs.msg import JointState
+from urdf_parser_py.urdf import URDF
+import subprocess
+import tempfile
+import rbdl
+
+# Variables globales
+current_state = None
+
+def joint_state_callback(msg):
+    global current_state
+    current_state = msg
+
+def cargar_modelo_rbdl(xacro_path):
+    xacro_result = subprocess.run(['xacro', xacro_path], capture_output=True, text=True)
+    if xacro_result.returncode != 0:
+        rospy.logerr("Error al procesar xacro:\n" + xacro_result.stderr)
+        exit(1)
+    urdf_xml = xacro_result.stdout
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".urdf") as urdf_file:
+        urdf_file.write(urdf_xml.encode('utf-8'))
+        urdf_path = urdf_file.name
+    return rbdl.loadModel(urdf_path)
+
+def minimum_jerk(t, T, q0, qf):
+    tau = t / T
+    return q0 + (qf - q0) * (10*tau**3 - 15*tau**4 + 6*tau**5)
+
+def d_minimum_jerk(t, T, q0, qf):
+    tau = t / T
+    return (qf - q0) * (30*tau**2 - 60*tau**3 + 30*tau**4) / T
+
+def dd_minimum_jerk(t, T, q0, qf):
+    tau = t / T
+    return (qf - q0) * (60*tau - 180*tau**2 + 120*tau**3) / (T**2)
+
+if __name__ == "__main__":
+    rospy.init_node("control_dinamico_rbdl")
+
+    # Suscribirse a /joint_states
+    rospy.Subscriber("/joint_states", JointState, joint_state_callback)
+
+    rospy.loginfo("Esperando mensaje inicial de /joint_states...")
+    while current_state is None and not rospy.is_shutdown():
+        rospy.sleep(0.1)
+    rospy.loginfo("¡Estado articular recibido!")
+
+    # Ruta al modelo
+    xacro_path = "/home/jjosnayo/lab_ws/src/proyectofr/fanuc_robot/fanuc_lrmate200id_support/urdf/lrmate200id.xacro"
+    model = cargar_modelo_rbdl(xacro_path)
+    ndof = model.q_size
+
+    # Nombre de las articulaciones a controlar
+    joint_names = ['joint_1', 'joint_2','joint_3','joint_4','joint_5','joint_6']
+    ndof_control = len(joint_names)
+
+    # Publishers
+    effort_pubs = [
+        rospy.Publisher(f"/fanuc/{j}_effort_controller/command", Float64, queue_size=1)
+        for j in joint_names
+    ]
+
+    # Estado inicial
+    name_to_pos = dict(zip(current_state.name, current_state.position))
+    q0 = np.array([name_to_pos[j] for j in joint_names])
+    qf = np.array([0.5, -0.5, 0.5, -0.2, 0.3, 0.1])  # Meta
+
+    # Control params
+    freq = 200
+    dt = 1.0 / freq
+    T = 5.0
+    N = int(T * freq)
+
+    # Ganancias PD
+    Kp = np.diag([100, 100, 100, 50, 30, 10])
+    Kd = np.diag([10, 10, 10, 5, 3, 1])
+
+    rospy.loginfo("Iniciando bucle de control...")
+    rate = rospy.Rate(freq)
+    t = 0.0
+    for i in range(N):
+        name_to_pos = dict(zip(current_state.name, current_state.position))
+        name_to_vel = dict(zip(current_state.name, current_state.velocity))
+
+        q_now = np.array([name_to_pos[j] for j in joint_names])
+        dq_now = np.array([name_to_vel[j] for j in joint_names])
+
+        # Referencia suave
+        q_des = minimum_jerk(t, T, q0, qf)
+        dq_des = d_minimum_jerk(t, T, q0, qf)
+        ddq_des = dd_minimum_jerk(t, T, q0, qf)
+
+        # Extendemos q, dq, ddq a tamaño ndof
+        q_full = np.concatenate((q_now, [0]*(ndof - ndof_control)))
+        dq_full = np.concatenate((dq_now, [0]*(ndof - ndof_control)))
+        ddq_full = np.concatenate((np.zeros(ndof_control), [0]*(ndof - ndof_control)))
+
+        # Torque por gravedad
+        g = np.zeros(ndof)
+        rbdl.InverseDynamics(model, q_full, np.zeros(ndof), np.zeros(ndof), g)
+
+        # Control PD+G
+        tau = Kp @ (q_des - q_now) + Kd @ (dq_des - dq_now) + g[:ndof_control]
+
+        # Publicar torques
+        for j in range(ndof_control):
+            effort_pubs[j].publish(Float64(tau[j]))
+
+        t += dt
+        rate.sleep()
+
+    rospy.loginfo("¡Trayectoria dinámica completada!")
+

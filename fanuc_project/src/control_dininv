@@ -1,0 +1,147 @@
+#!/usr/bin/env python3
+
+import rospy
+from sensor_msgs.msg import JointState
+from markers import *
+from auxfunctions import *
+import numpy as np
+import rbdl
+from urdf_parser_py.urdf import URDF
+import subprocess
+import tempfile
+
+def cargar_modelo_rbdl(xacro_path):
+    xacro_result = subprocess.run(['xacro', xacro_path], capture_output=True, text=True)
+    if xacro_result.returncode != 0:
+        rospy.logerr("Error al procesar xacro:\n" + xacro_result.stderr)
+        exit(1)
+    urdf_xml = xacro_result.stdout
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".urdf") as urdf_file:
+        urdf_file.write(urdf_xml.encode('utf-8'))
+        urdf_path = urdf_file.name
+    return urdf_path
+
+# Inicializar nodo
+rospy.init_node("control_din")
+pub = rospy.Publisher('joint_states', JointState, queue_size=1000)
+bmarker_actual  = BallMarker(color['RED'])
+bmarker_deseado = BallMarker(color['GREEN'])
+
+# Archivos de log
+fqact = open("qactual.txt", "w")
+fqdes = open("qdeseado.txt", "w")
+fxact = open("xactual.txt", "w")
+fxdes = open("xdeseado.txt", "w")
+
+# Nombres de articulaciones (8 DOF modelo completo)
+jnames = ['joint_1', 'joint_2','joint_3','joint_4','joint_5','joint_6','gripper_base-finger_1','gripper_base-finger_2']
+
+jstate = JointState()
+jstate.name = jnames
+
+# Configuración inicial
+q = np.zeros(8)
+dq = np.zeros(8)
+ddq = np.zeros(8)
+
+qdes = np.array([3.1416/4, 0, 0, 0, 0, 0, 0, 0])
+dqdes = np.zeros(8)
+ddqdes = np.zeros(8)
+
+# Kinemática deseada solo para primeros 6 DOF
+xdes = fkine_fanuc(qdes[:6])[0:3,3]
+
+# Cargar modelo RBDL
+xacro_path = "/home/jjosnayo/lab_ws/src/proyectofr/fanuc_robot/fanuc_lrmate200id_support/urdf/lrmate200id.xacro"
+urdf_path = cargar_modelo_rbdl(xacro_path)
+modelo = rbdl.loadModel(urdf_path)
+ndof_model = modelo.q_size  # 8 DOF en URDF
+ndof_ctrl = 6               # Solo controlaremos 6 DOF
+
+zeros = np.zeros(ndof_model)
+
+# Simulador
+freq = 50
+dt = 1.0/freq
+rate = rospy.Rate(freq)
+robot = Robot(q, dq, ndof_model, dt, urdf_path)
+
+# Ganancias de control
+valores = 0.1 * np.array([5, 5, 5])
+Kp = np.diag(valores)
+Kd = 2 * np.sqrt(Kp)
+
+# Variables internas
+J_PAS = np.zeros((3, ndof_ctrl))
+epas = np.zeros(3)
+b2 = np.zeros(ndof_ctrl)
+M2 = np.zeros((ndof_ctrl, ndof_ctrl))
+
+# Tiempo
+t = 0.0
+tiempo_max = 10.0  # 10 segundos
+qg = np.array([0,0]) # articulaciones del gripper
+
+while not rospy.is_shutdown() and t < tiempo_max:
+    # Leer estado completo (8 DOF)
+    q = robot.read_joint_positions()
+    dq = robot.read_joint_velocities()
+
+    # Extraer solo articulaciones 1-6
+    q6 = q[:6]
+    dq6 = dq[:6]
+
+    # Saturaciones para articulaciones 1-6
+    q6 = np.clip(q6, -np.pi, np.pi)
+    dq6 = np.clip(dq6, -2.0, 2.0)
+
+    # Cinemática directa (solo primeros 6)
+    x = fkine_fanuc(q6)[0:3, 3]
+
+    # Timestamp
+    jstate.header.stamp = rospy.Time.now()
+
+    # Guardar logs
+    fxact.write(f"{t} {x[0]} {x[1]} {x[2]}\n")
+    fxdes.write(f"{t} {xdes[0]} {xdes[1]} {xdes[2]}\n")
+    fqact.write(f"{t} {' '.join(map(str, q6))}\n")
+    fqdes.write(f"{t} {' '.join(map(str, qdes[:6]))}\n")
+
+    # --- Control dinámico ---
+    M_full = np.zeros((ndof_model, ndof_model))
+    b_full = np.zeros(ndof_model)
+    rbdl.CompositeRigidBodyAlgorithm(modelo, q, M_full)
+    rbdl.NonlinearEffects(modelo, q, dq, b_full)
+
+    M2 = M_full[:6, :6]
+    b2 = b_full[:6]
+
+    J = jacobian_position(q6, dt)
+    dJ = (J - J_PAS) / dt
+    e = xdes - x
+    de = (e - epas) / dt
+
+    u = M2 @ np.linalg.pinv(J) @ (-dJ @ dq6 + Kd @ de + Kp @ e) + b2
+
+    epas = e
+    J_PAS = J
+
+    # Comando de control (extender con zeros para 8 DOF)
+    tau = np.zeros(ndof_model)
+    tau[:6] = u
+
+    robot.send_command(tau)
+
+    jstate.position = q
+    pub.publish(jstate)
+    bmarker_deseado.xyz(xdes)
+    bmarker_actual.xyz(x)
+
+    t += dt
+    rate.sleep()
+
+# Cierre de archivos
+fqact.close()
+fqdes.close()
+fxact.close()
+fxdes.close()

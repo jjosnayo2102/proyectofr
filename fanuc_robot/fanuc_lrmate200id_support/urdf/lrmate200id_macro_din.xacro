@@ -152,13 +152,13 @@
       </collision>
     </link>
 
-    <!-- joints: main serial chain -->
     <joint name="${prefix}joint_1" type="revolute">
       <origin xyz="0 0 0.330" rpy="0 0 0" />
       <parent link="${prefix}base_link" />
       <child link="${prefix}link_1" />
       <axis xyz="0 0 1" />
       <limit effort="30" lower="${radians(-170)}" upper="${radians(170)}" velocity="${radians(450)}" />
+      <dynamics damping="0.1" friction="0.0"/>
     </joint>
 
     <joint name="${prefix}joint_2" type="revolute">
@@ -167,6 +167,7 @@
       <child link="${prefix}link_2" />
       <axis xyz="0 1 0" />
       <limit effort="30" lower="${radians(-100)}" upper="${radians(145)}" velocity="${radians(380)}" />
+      <dynamics damping="0.1" friction="0.0"/>
     </joint>
 
     <joint name="${prefix}joint_3" type="revolute">
@@ -175,6 +176,7 @@
       <child link="${prefix}link_3" />
       <axis xyz="0 -1 0" />
       <limit effort="30" lower="${radians(-70)}" upper="${radians(205)}" velocity="${radians(520)}" />
+      <dynamics damping="0.1" friction="0.0"/>
     </joint>
 
     <joint name="${prefix}joint_4" type="revolute">
@@ -183,6 +185,7 @@
       <child link="${prefix}link_4"/>
       <axis xyz="-1 0 0"/>
       <limit effort="20" lower="${radians(-190)}" upper="${radians(190)}" velocity="${radians(550)}" />
+      <dynamics damping="0.1" friction="0.0"/>
     </joint>
 
     <joint name="${prefix}joint_5" type="revolute">
@@ -191,6 +194,7 @@
       <child link="${prefix}link_5"/>
       <axis xyz="0 -1 0"/>
       <limit effort="20" lower="${radians(-125)}" upper="${radians(125)}" velocity="${radians(545)}" />
+      <dynamics damping="0.1" friction="0.0"/>
     </joint>
 
     <joint name="${prefix}joint_6" type="revolute">
@@ -199,6 +203,7 @@
       <child link="${prefix}link_6"/>
       <axis xyz="-1 0 0"/>
       <limit effort="10" lower="${radians(-360)}" upper="${radians(360)}" velocity="${radians(1000)}" />
+      <dynamics damping="0.1" friction="0.0"/>
     </joint>
 
     <!-- ROS-Industrial 'base' frame -->
@@ -279,10 +284,10 @@
       <origin xyz="0.03 0.037 0.001" rpy="0 0 0"/>
       <parent link="${prefix}gripper_base"/>
       <child link="${prefix}finger_1"/>
-      <axis xyz="0 -1 0"/>   <!-- Cambia a -1 -->
+      <axis xyz="0 -1 0"/>
       <limit effort="1.0" lower="0" upper="0.04" velocity="0.1"/>
+      <dynamics damping="0.01" friction="0.0"/>
     </joint>
-
 
     <!-- Dedo derecho (finger_2) -->
     <link name="${prefix}finger_2">
@@ -318,6 +323,7 @@
       <child link="${prefix}finger_2"/>
       <axis xyz="0 1 0"/>
       <limit effort="1.0" lower="0" upper="0.04" velocity="0.1"/>
+      <dynamics damping="0.01" friction="0.0"/>
     </joint>
     
     <link name="${prefix}tool0" />
@@ -334,22 +340,21 @@
       </plugin>
     </gazebo>
 
-    <!-- Transmissions -->
+    <!-- Transmissions (brazo con esfuerzo) -->
     <transmission name="${prefix}trans_joint_1">
       <type>transmission_interface/SimpleTransmission</type>
       <joint name="${prefix}joint_1">
-        <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+        <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
       </joint>
       <actuator name="${prefix}motor_joint_1">
         <mechanicalReduction>1</mechanicalReduction>
       </actuator>
     </transmission>
 
-    <!-- Repite para los demás joints -->
     <transmission name="${prefix}trans_joint_2">
       <type>transmission_interface/SimpleTransmission</type>
       <joint name="${prefix}joint_2">
-        <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+        <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
       </joint>
       <actuator name="${prefix}motor_joint_2">
         <mechanicalReduction>1</mechanicalReduction>
@@ -359,7 +364,7 @@
     <transmission name="${prefix}trans_joint_3">
       <type>transmission_interface/SimpleTransmission</type>
       <joint name="${prefix}joint_3">
-        <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+        <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
       </joint>
       <actuator name="${prefix}motor_joint_3">
         <mechanicalReduction>1</mechanicalReduction>
@@ -369,7 +374,7 @@
     <transmission name="${prefix}trans_joint_4">
       <type>transmission_interface/SimpleTransmission</type>
       <joint name="${prefix}joint_4">
-        <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+        <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
       </joint>
       <actuator name="${prefix}motor_joint_4">
         <mechanicalReduction>1</mechanicalReduction>
@@ -379,7 +384,7 @@
     <transmission name="${prefix}trans_joint_5">
       <type>transmission_interface/SimpleTransmission</type>
       <joint name="${prefix}joint_5">
-        <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+        <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
       </joint>
       <actuator name="${prefix}motor_joint_5">
         <mechanicalReduction>1</mechanicalReduction>
@@ -389,34 +394,34 @@
     <transmission name="${prefix}trans_joint_6">
       <type>transmission_interface/SimpleTransmission</type>
       <joint name="${prefix}joint_6">
-        <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
+        <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
       </joint>
       <actuator name="${prefix}motor_joint_6">
         <mechanicalReduction>1</mechanicalReduction>
       </actuator>
     </transmission>
-    
+
+    <!-- Transmisiones del gripper (modo esfuerzo) -->
     <transmission name="${prefix}trans_gripper_finger_1">
-  <type>transmission_interface/SimpleTransmission</type>
-  <joint name="${prefix}gripper_base_finger_1">
-    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
-  </joint>
-  <actuator name="${prefix}motor_finger_1">
-    <mechanicalReduction>1</mechanicalReduction>
-  </actuator>
-</transmission>
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${prefix}gripper_base_finger_1">
+        <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+      </joint>
+      <actuator name="${prefix}motor_finger_1">
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
 
-<transmission name="${prefix}trans_gripper_finger_2">
-  <type>transmission_interface/SimpleTransmission</type>
-  <joint name="${prefix}gripper_base_finger_2">
-    <hardwareInterface>hardware_interface/PositionJointInterface</hardwareInterface>
-  </joint>
-  <actuator name="${prefix}motor_finger_2">
-    <mechanicalReduction>1</mechanicalReduction>
-  </actuator>
-</transmission>
+    <transmission name="${prefix}trans_gripper_finger_2">
+      <type>transmission_interface/SimpleTransmission</type>
+      <joint name="${prefix}gripper_base_finger_2">
+        <hardwareInterface>hardware_interface/EffortJointInterface</hardwareInterface>
+      </joint>
+      <actuator name="${prefix}motor_finger_2">
+        <mechanicalReduction>1</mechanicalReduction>
+      </actuator>
+    </transmission>
 
-    
     <!-- Anchor to Gazebo world -->
     <gazebo reference="${prefix}base_link">
       <pose>0 0 0 0 0 0</pose>
@@ -429,4 +434,3 @@
 
   </xacro:macro>
 </robot>
-
